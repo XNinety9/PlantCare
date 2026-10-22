@@ -53,10 +53,10 @@ Then open <http://localhost:8000>.
 
 ```bash
 cp .env.example .env   # then fill in ANTHROPIC_API_KEY
-docker compose up -d --build
+docker compose up -d
 ```
 
-The image is based on `python:3.13-slim` and builds on both x86 (NUC, server) and ARM (Raspberry Pi). The container does not include the Claude CLI, so it uses the API and needs the key.
+The image `ghcr.io/xninety9/plantcare` is published for both x86 (NUC, server) and ARM (Raspberry Pi). It is based on `python:3.13-slim` and does not include the Claude CLI, so it uses the API and needs the key. To upgrade, change the tag in `docker-compose.yml` and run `docker compose up -d` again.
 
 ## Configuration
 

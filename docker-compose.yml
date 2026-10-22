@@ -1,6 +1,6 @@
 services:
   plantcare:
-    build: .
+    image: ghcr.io/xninety9/plantcare:1.0.0
     ports:
       - "8000:8000"
     env_file: .env
