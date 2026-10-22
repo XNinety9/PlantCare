@@ -32,7 +32,7 @@ A self-hosted plant notebook. Snap a photo of a plant: Claude identifies it and 
 
 ## How Claude is called
 
-- If the `claude` CLI ([Claude Code](https://claude.com/claude-code)) is on the `PATH`, PlantCare uses it. No API key is needed; calls count against your Claude Code usage. The CLI runs with tools, MCP servers and project settings disabled to keep each call small.
+- If the `claude` CLI ([Claude Code](https://claude.com/claude-code)) is on the `PATH`, PlantCare uses it. No API key is needed; calls count against your Claude Code usage. The CLI runs with tools, MCP servers and project settings disabled to keep each call small. The Docker image includes the CLI and authenticates it with `CLAUDE_CODE_OAUTH_TOKEN`.
 - Otherwise PlantCare calls the Anthropic API directly, and `ANTHROPIC_API_KEY` must be set.
 - The default model is `claude-haiku-5-5`. Set `PLANTCARE_MODEL` to use another one (for example `claude-sonnet-5-5` or `claude-opus-5-5` for harder identifications, at a higher cost per photo).
 
@@ -56,7 +56,13 @@ cp .env.example .env   # then fill in ANTHROPIC_API_KEY
 docker compose up -d
 ```
 
-The image `ghcr.io/xninety9/plantcare` is published for both x86 (NUC, server) and ARM (Raspberry Pi). It is based on `python:3.13-slim` and does not include the Claude CLI, so it uses the API and needs the key. To upgrade, change the tag in `docker-compose.yml` and run `docker compose up -d` again.
+The image `ghcr.io/xninety9/plantcare` is published for both x86 (NUC, server) and ARM (Raspberry Pi). It is based on `python:3.13-slim` and includes the Claude CLI, which uses your Claude subscription instead of API credits. Generate a token on a machine with a browser, then put it in `.env`:
+
+```bash
+claude setup-token   # prints a one-year token: set it as CLAUDE_CODE_OAUTH_TOKEN
+```
+
+Keep `ANTHROPIC_API_KEY` empty in Docker: when it is set, the CLI uses the API key instead of the subscription. To upgrade, change the tag in `docker-compose.yml` and run `docker compose up -d` again.
 
 ## Configuration
 
@@ -64,7 +70,8 @@ All settings are environment variables (see `.env.example`).
 
 | Variable | Default | Purpose |
 | --- | --- | --- |
-| `ANTHROPIC_API_KEY` | | API key, required when the Claude CLI is not available |
+| `CLAUDE_CODE_OAUTH_TOKEN` | | Token from `claude setup-token`; authenticates the Claude CLI with your subscription (Docker image) |
+| `ANTHROPIC_API_KEY` | | API key, required when the Claude CLI is not available; leave empty in Docker |
 | `PLANTCARE_MODEL` | `claude-haiku-5-5` | Model used for identification, care sheets and health checks |
 | `PLANTCARE_PASSWORD` | empty | Enables a login page when set |
 | `PLANTCARE_SECRET` | generated | Signs login sessions, the calendar link and vacation pages; stored in `data/secret.key` when not set |
