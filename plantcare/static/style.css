@@ -135,7 +135,8 @@ main {
   gap: 12px;
   max-width: 1120px;
   margin: 0 auto;
-  padding: 14px 16px;
+  /* En PWA iOS, la barre d'état est transparente (black-translucent) : la barre passe dessous */
+  padding: calc(14px + env(safe-area-inset-top)) 16px 14px;
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
 }
