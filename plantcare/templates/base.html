@@ -1,0 +1,80 @@
+{% from "_icons.html" import icon %}
+<!doctype html>
+<html lang="{{ lang }}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0c1410">
+  <title>PlantCare{% block title %}{% endblock %}</title>
+  <link rel="manifest" href="/static/manifest.webmanifest">
+  <link rel="icon" href="/static/icons/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="/static/icons/apple-touch-icon.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400..800;1,9..144,400..600&family=Inter:wght@400..700&display=swap">
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <div class="backdrop" aria-hidden="true"></div>
+  <header class="topbar">
+    <a href="/" class="brand">
+      <span class="brand-mark">{{ icon("leaf", 18) }}</span>
+      <span class="brand-name">PlantCare</span>
+    </a>
+    {% block nav %}
+    <nav class="nav">
+      <a href="/" class="{{ 'active' if current_path == '/' or current_path.startswith('/plants') }}">{{ icon("grid", 16) }}<span>{{ t.nav_collection }}</span></a>
+      <a href="/calendar" class="{{ 'active' if current_path == '/calendar' }}">{{ icon("calendar", 16) }}<span>{{ t.nav_calendar }}</span></a>
+      <a href="/vacation" class="{{ 'active' if current_path == '/vacation' }}">{{ icon("suitcase", 16) }}<span>{{ t.nav_vacation }}</span></a>
+    </nav>
+    {% endblock %}
+    <div class="topbar-tools">
+      <div class="lang-switch" role="group" aria-label="Language">
+        {% for code in ["fr", "en"] %}
+        <a href="/lang/{{ code }}?next={{ current_path|urlencode }}" class="{{ 'active' if code == lang }}" hreflang="{{ code }}">{{ code|upper }}</a>
+        {% endfor %}
+      </div>
+      {% if auth_enabled and current_path != "/login" %}
+      <form method="post" action="/logout">
+        <button type="submit" class="icon-btn" title="{{ t.logout }}" aria-label="{{ t.logout }}">{{ icon("logout", 18) }}</button>
+      </form>
+      {% endif %}
+    </div>
+  </header>
+  <main>
+    {% block content %}{% endblock %}
+  </main>
+  <div class="loader" id="loader" hidden>
+    <div class="loader-orb">{{ icon("leaf", 44) }}</div>
+    <p class="loader-text" id="loader-text">{{ t.loader_messages[0] }}</p>
+    <p class="loader-sub">{{ t.loader_sub }}</p>
+  </div>
+  <script>
+    // Les formulaires marqués data-loading déclenchent un appel à Claude : on affiche l'attente.
+    const loaderMessages = {{ t.loader_messages|tojson }};
+    document.querySelectorAll("form[data-loading]").forEach((form) =>
+      form.addEventListener("submit", () => {
+        const text = document.getElementById("loader-text");
+        document.getElementById("loader").hidden = false;
+        let step = 0;
+        setInterval(() => {
+          step = Math.min(step + 1, loaderMessages.length - 1);
+          text.textContent = loaderMessages[step];
+        }, 7000);
+      }));
+
+    // Les champs photo marqués data-autosubmit envoient le formulaire dès qu'une photo est choisie
+    document.querySelectorAll("input[data-autosubmit]").forEach((input) =>
+      input.addEventListener("change", () => {
+        if (input.files.length) input.form.requestSubmit();
+      }));
+
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.register("/sw.js").catch(() => {});
+    }
+  </script>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

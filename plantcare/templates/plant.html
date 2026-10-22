@@ -1,0 +1,259 @@
+{% extends "base.html" %}
+{% from "_icons.html" import icon %}
+{% block title %} · {{ plant.name }}{% endblock %}
+
+{% block content %}
+{% set care = plant.care %}
+{% set texts = plant.texts %}
+{% set kind_icons = {"water": "droplet", "fertilize": "seedling", "repot": "pot"} %}
+<article class="fiche">
+  <header class="fiche-hero">
+    <img src="/photos/{{ plant.photo_file }}" alt="{{ plant.name }}">
+    <div class="fiche-hero-body">
+      <div class="pills">
+        {% if care %}<span class="pill pill-{{ care.difficulty }}">{{ icon("gauge", 14) }} {{ t.difficulty[care.difficulty] }}</span>{% endif %}
+        <span class="pill">{{ t.confidence.format(n=(plant.confidence * 100)|round|int) }}</span>
+        {% if plant.location %}<span class="pill">{{ icon("pin", 14) }} {{ plant.location }}</span>{% endif %}
+      </div>
+      <h1>{{ plant.name }}</h1>
+      <p class="sci">{{ plant.scientific_name }}</p>
+    </div>
+  </header>
+
+  {% if error_message %}
+  <p class="alert">{{ icon("alert", 18) }} {{ error_message }}</p>
+  {% endif %}
+
+  {% if care %}
+  <section class="care-panel" aria-label="{{ t.care_title }}">
+    {% for kind in ["water", "fertilize", "repot"] %}
+    {% set status = plant.status[kind] %}
+    <div class="care-card kind-{{ kind }} state-{{ status.state }}">
+      <div class="care-card-head">
+        <span class="care-card-icon">{{ icon(kind_icons[kind], 20) }}</span>
+        <div>
+          <span class="care-card-name">{{ t.care[kind].name }}</span>
+          <strong>{{ status.label }}</strong>
+        </div>
+      </div>
+      {% if history[kind] %}
+      <small class="care-card-history">{{ t.history }} {{ history[kind][:3]|join(" · ") }}</small>
+      {% endif %}
+      <div class="care-card-actions">
+        <form method="post" action="/plants/{{ plant.id }}/care/{{ kind }}">
+          <button type="submit" class="btn btn-task">{{ icon("check", 16) }} {{ t.care[kind].done }}</button>
+        </form>
+        {% if history[kind] %}
+        <form method="post" action="/plants/{{ plant.id }}/care/{{ kind }}/undo">
+          <button type="submit" class="icon-btn" title="{{ t.undo }}" aria-label="{{ t.undo }}">{{ icon("undo", 16) }}</button>
+        </form>
+        {% endif %}
+      </div>
+    </div>
+    {% endfor %}
+  </section>
+
+  <p class="summary">{{ texts.summary }}</p>
+
+  <section class="stats">
+    <div class="stat stat-water">
+      <div class="stat-head">{{ icon("droplet") }} {{ t.watering }}</div>
+      <p class="stat-big">{{ plant.summer_interval }}<small>{{ t.days }}</small></p>
+      {% if plant.winter_interval != plant.summer_interval %}
+      <p class="stat-sub">{{ icon("sparkles", 14) }} {{ t.winter_interval.format(n=plant.winter_interval) }}</p>
+      {% endif %}
+      <p class="stat-text">{{ texts.watering }}</p>
+    </div>
+
+    {% set light_levels = ["low", "medium", "bright_indirect", "direct_sun"] %}
+    {% set light_index = light_levels.index(care.light_level) %}
+    <div class="stat stat-light">
+      <div class="stat-head">{{ icon("sun") }} {{ t.light }}</div>
+      <p class="stat-value">{{ t.light_levels[care.light_level] }}</p>
+      <div class="meter" role="img" aria-label="{{ light_index + 1 }}/4">
+        {% for level in light_levels %}<span class="{{ 'on' if loop.index0 <= light_index }}"></span>{% endfor %}
+      </div>
+      <p class="stat-text">{{ texts.light }}</p>
+    </div>
+
+    {% set humidity_levels = ["low", "medium", "high"] %}
+    {% set humidity_index = humidity_levels.index(care.humidity_level) %}
+    <div class="stat stat-humidity">
+      <div class="stat-head">{{ icon("waves") }} {{ t.humidity }}</div>
+      <p class="stat-value">{{ t.humidity_levels[care.humidity_level] }}</p>
+      <div class="meter" role="img" aria-label="{{ humidity_index + 1 }}/3">
+        {% for level in humidity_levels %}<span class="{{ 'on' if loop.index0 <= humidity_index }}"></span>{% endfor %}
+      </div>
+      <p class="stat-text">{{ texts.humidity }}</p>
+    </div>
+
+    {% set scale = 40 %}
+    <div class="stat stat-temp">
+      <div class="stat-head">{{ icon("thermometer") }} {{ t.temperature }}</div>
+      <p class="stat-value">{{ care.temperature_min_c }}–{{ care.temperature_max_c }} °C</p>
+      <div class="range" role="img" aria-label="{{ care.temperature_min_c }}–{{ care.temperature_max_c }} °C">
+        <span style="left: {{ [care.temperature_min_c, 0]|max / scale * 100 }}%;
+                     width: {{ ([care.temperature_max_c, scale]|min - [care.temperature_min_c, 0]|max) / scale * 100 }}%"></span>
+      </div>
+      <div class="range-scale"><span>0 °C</span><span>20</span><span>40 °C</span></div>
+    </div>
+
+    <div class="stat stat-pot">
+      <div class="stat-head">{{ icon("pot") }} {{ t.pot }}</div>
+      <p class="stat-big">{{ care.pot_size_cm }}<small>cm</small></p>
+      <p class="stat-text">{{ texts.pot }}</p>
+    </div>
+
+    <div class="stat stat-pets {{ 'is-safe' if care.pet_safe else 'is-toxic' }}">
+      <div class="stat-head">{{ icon("paw") }} {{ t.pets }}</div>
+      <p class="stat-value">{{ t.pet_safe if care.pet_safe else t.pet_toxic }}</p>
+      <p class="stat-text">{{ texts.toxicity }}</p>
+    </div>
+  </section>
+
+  <section class="details">
+    <div class="detail">
+      <span class="detail-icon">{{ icon("layers") }}</span>
+      <div><h3>{{ t.substrate }}</h3><p>{{ texts.substrate }}</p></div>
+    </div>
+    <div class="detail">
+      <span class="detail-icon">{{ icon("seedling") }}</span>
+      <div><h3>{{ t.fertilizer }}</h3><p>{{ texts.fertilizer }}</p></div>
+    </div>
+  </section>
+
+  {% if texts.tips %}
+  <section class="tips">
+    <h2 class="section-title">{{ t.good_to_know }}</h2>
+    <ul>
+      {% for tip in texts.tips %}<li>{{ tip }}</li>{% endfor %}
+    </ul>
+  </section>
+  {% endif %}
+
+  <section class="health" id="health">
+    <div class="section-head">
+      <h2 class="section-title">{{ icon("stethoscope", 24) }} {{ t.health_title }}</h2>
+      <form method="post" action="/plants/{{ plant.id }}/diagnose" enctype="multipart/form-data" data-loading>
+        <label class="btn btn-primary file-btn">
+          {{ icon("camera", 18) }} {{ t.diagnose_btn }}
+          <input type="file" name="photo" accept="image/*" capture="environment" data-autosubmit>
+        </label>
+      </form>
+    </div>
+    <p class="muted">{{ t.health_lead }}</p>
+    {% for photo in diagnoses %}
+    {% set diagnosis = photo.diagnosis_view %}
+    <div class="diagnosis severity-{{ diagnosis.severity }}">
+      <img src="/photos/{{ photo.photo_file }}" alt="" loading="lazy">
+      <div class="diagnosis-body">
+        <div class="diagnosis-head">
+          <span class="severity-badge">{{ t.severity[diagnosis.severity] }}</span>
+          <span class="muted">{{ photo.date_label }}</span>
+        </div>
+        <h3>{{ diagnosis.texts.title }}</h3>
+        <div class="diagnosis-columns">
+          <div>
+            <h4>{{ t.causes }}</h4>
+            <ul>{% for cause in diagnosis.texts.causes %}<li>{{ cause }}</li>{% endfor %}</ul>
+          </div>
+          <div>
+            <h4>{{ t.actions }}</h4>
+            <ul class="checklist">{% for action in diagnosis.texts.actions %}<li>{{ action }}</li>{% endfor %}</ul>
+          </div>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </section>
+  {% else %}
+  <div class="outdated">
+    {{ icon("refresh", 28) }}
+    <p>{{ t.outdated }}</p>
+  </div>
+  {% endif %}
+
+  <section class="journal" id="journal">
+    <div class="section-head">
+      <h2 class="section-title">{{ icon("image", 24) }} {{ t.journal_title }} <span class="badge-count">{{ photos|length }}</span></h2>
+      <form method="post" action="/plants/{{ plant.id }}/photos" enctype="multipart/form-data">
+        <label class="btn btn-secondary file-btn">
+          {{ icon("camera", 18) }} {{ t.journal_add }}
+          <input type="file" name="photo" accept="image/*" capture="environment" data-autosubmit>
+        </label>
+      </form>
+    </div>
+    <ol class="journal-strip">
+      {% for photo in photos %}
+      <li class="journal-item{{ ' is-main' if photo.is_main }}">
+        <a href="/photos/{{ photo.photo_file }}" target="_blank" rel="noopener">
+          <img src="/photos/{{ photo.photo_file }}" alt="{{ photo.date_label }}" loading="lazy">
+        </a>
+        <div class="journal-meta">
+          <span>{{ photo.date_label }}</span>
+          {% if photo.diagnosis_view %}
+          <span class="severity-dot severity-{{ photo.diagnosis_view.severity }}" title="{{ t.severity[photo.diagnosis_view.severity] }}"></span>
+          {% endif %}
+          {% if photo.is_main %}
+          <span class="journal-main" title="{{ t.journal_main }}">{{ icon("star", 14) }}</span>
+          {% else %}
+          <form method="post" action="/journal/{{ photo.id }}/main">
+            <button type="submit" class="mini-btn" title="{{ t.journal_set_main }}" aria-label="{{ t.journal_set_main }}">{{ icon("star", 14) }}</button>
+          </form>
+          <form method="post" action="/journal/{{ photo.id }}/delete" onsubmit='return confirm({{ t.journal_delete_confirm|tojson }});'>
+            <button type="submit" class="mini-btn mini-danger" title="{{ t.journal_delete }}" aria-label="{{ t.journal_delete }}">{{ icon("trash", 14) }}</button>
+          </form>
+          {% endif %}
+        </div>
+      </li>
+      {% endfor %}
+    </ol>
+  </section>
+
+  {% if references %}
+  <section class="references">
+    <h2 class="section-title">{{ t.references }}</h2>
+    <div class="reference-list">
+      {% for label, url in references %}
+      <a href="{{ url }}" target="_blank" rel="noopener noreferrer" class="reference">
+        {{ icon("link", 16) }}<span>{{ label }}</span>{{ icon("external", 14) }}
+      </a>
+      {% endfor %}
+    </div>
+  </section>
+  {% endif %}
+
+  <details class="edit-panel">
+    <summary>{{ icon("pencil", 18) }} {{ t.edit }}</summary>
+    <div class="edit-panel-body">
+      <form method="post" action="/plants/{{ plant.id }}/location" class="edit-row">
+        <label class="field">
+          {{ icon("pin", 18) }}
+          <input type="text" name="location" value="{{ plant.location }}" placeholder="{{ t.location_placeholder }}" aria-label="{{ t.location }}">
+        </label>
+        <button type="submit" class="btn btn-secondary">{{ t.save }}</button>
+      </form>
+      <form method="post" action="/plants/{{ plant.id }}/rename" class="edit-block" data-loading>
+        <span class="edit-label">{{ t.rename_label }}</span>
+        <div class="edit-row">
+          <label class="field">
+            {{ icon("leaf", 18) }}
+            <input type="text" name="name" required placeholder="{{ t.rename_placeholder }}" aria-label="{{ t.rename_label }}">
+          </label>
+          <button type="submit" class="btn btn-secondary">{{ icon("sparkles", 18) }} {{ t.rename_btn }}</button>
+        </div>
+      </form>
+    </div>
+  </details>
+
+  <footer class="fiche-actions">
+    <form method="post" action="/plants/{{ plant.id }}/refresh" data-loading>
+      <button type="submit" class="btn btn-secondary">{{ icon("refresh", 18) }} {{ t.regenerate }}</button>
+    </form>
+    <form method="post" action="/plants/{{ plant.id }}/delete"
+          onsubmit='return confirm({{ t.delete_confirm.format(name=plant.name)|tojson }});'>
+      <button type="submit" class="btn btn-ghost-danger">{{ icon("trash", 18) }} {{ t.delete }}</button>
+    </form>
+  </footer>
+</article>
+{% endblock %}

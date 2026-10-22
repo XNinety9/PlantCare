@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% from "_icons.html" import icon %}
+{% block nav %}{% endblock %}
+
+{% block content %}
+<section class="login">
+  <span class="login-mark">{{ icon("leaf", 34) }}</span>
+  <h1>{{ t.login_title }}</h1>
+  {% if error_message %}
+  <p class="alert">{{ icon("alert", 18) }} {{ error_message }}</p>
+  {% endif %}
+  <form method="post" action="/login" class="login-form">
+    <label class="field">
+      {{ icon("lock", 18) }}
+      <input type="password" name="password" required autofocus autocomplete="current-password" placeholder="{{ t.password }}" aria-label="{{ t.password }}">
+    </label>
+    <button type="submit" class="btn btn-primary">{{ t.login_btn }}</button>
+  </form>
+</section>
+{% endblock %}

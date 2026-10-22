@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+{% from "_icons.html" import icon %}
+{% block title %} · {{ t.nav_calendar }}{% endblock %}
+
+{% block content %}
+{% set kind_icons = {"water": "droplet", "fertilize": "seedling", "repot": "pot"} %}
+<section class="page-head">
+  <p class="eyebrow">{{ t.nav_calendar }}</p>
+  <h1>{{ t.calendar_title }}</h1>
+  <p class="lead">{{ t.calendar_lead }}</p>
+  <div class="legend">
+    {% for kind in ["water", "fertilize", "repot"] %}
+    <span class="legend-item kind-{{ kind }}">{{ icon(kind_icons[kind], 14) }} {{ t.care[kind].name }}</span>
+    {% endfor %}
+  </div>
+</section>
+
+{% if notice_message %}<p class="notice">{{ icon("check", 18) }} {{ notice_message }}</p>{% endif %}
+{% if error_message %}<p class="alert">{{ icon("alert", 18) }} {{ error_message }}</p>{% endif %}
+
+{% if untracked %}
+<section class="untracked">
+  <p>{{ icon("alert", 18) }} {{ t.untracked }}</p>
+  <div class="chips">
+    {% for plant in untracked %}
+    <a href="/plants/{{ plant.id }}" class="avatar-chip">
+      <img src="/photos/{{ plant.photo_file }}" alt="">{{ plant.name }}
+    </a>
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
+
+<section class="calendar">
+  <div class="calendar-weekdays" aria-hidden="true">
+    {% for weekday in weekdays %}<span>{{ weekday }}</span>{% endfor %}
+  </div>
+  <ol class="calendar-grid">
+    {% for day in days %}
+    <li class="day{{ ' is-today' if day.is_today }}{{ ' is-past' if day.is_past }}{{ ' is-empty' if not day.entries }}">
+      <div class="day-head">
+        <span class="day-number">{{ day.number }}</span>
+        <span class="day-label">{{ weekdays[day.date.weekday()] }} · {{ day.label }}{% if day.is_today %} · {{ t.calendar_today }}{% endif %}</span>
+      </div>
+      {% for entry in day.entries %}
+      <a href="/plants/{{ entry.plant.id }}" class="day-plant kind-{{ entry.kind }}{{ ' is-overdue' if entry.overdue }}"
+         title="{{ t.care[entry.kind].event.format(name=entry.plant.name) }}">
+        <img src="/photos/{{ entry.plant.photo_file }}" alt="">
+        <span>{{ entry.plant.name }}</span>
+        {% if entry.kind != "water" %}{{ icon(kind_icons[entry.kind], 13) }}{% endif %}
+      </a>
+      {% endfor %}
+    </li>
+    {% endfor %}
+  </ol>
+</section>
+
+<section class="subscribe">
+  <div class="subscribe-icon">{{ icon("calendar", 26) }}</div>
+  <div class="subscribe-body">
+    <h2>{{ t.subscribe_title }}</h2>
+    <p>{{ t.subscribe_text }}</p>
+    <div class="edit-row">
+      <label class="field">
+        {{ icon("link", 18) }}
+        <input type="text" readonly value="{{ feed_url }}" id="feed-url" aria-label="iCal">
+      </label>
+      <button type="button" class="btn btn-secondary" id="copy-feed">{{ icon("copy", 18) }} <span>{{ t.copy_label }}</span></button>
+      <a class="btn btn-primary" href="{{ feed_url|replace('https://', 'webcal://')|replace('http://', 'webcal://') }}">{{ icon("calendar", 18) }} webcal</a>
+    </div>
+    <p class="hint">{{ icon("lock", 14) }} {{ t.subscribe_warning }}</p>
+  </div>
+</section>
+
+<section class="subscribe subscribe-compact">
+  <div class="subscribe-icon">{{ icon("bell", 26) }}</div>
+  <div class="subscribe-body">
+    <h2>{{ t.notifications_title }}</h2>
+    {% if notifications.enabled %}
+    <p>{{ t.notifications_on.format(time=notifications.time) }}</p>
+    <form method="post" action="/notifications/test">
+      <button type="submit" class="btn btn-secondary">{{ icon("bell", 18) }} {{ t.notifications_test }}</button>
+    </form>
+    {% else %}
+    <p>{{ t.notifications_off }}</p>
+    {% endif %}
+  </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  document.getElementById("copy-feed").addEventListener("click", async (event) => {
+    const input = document.getElementById("feed-url");
+    const label = event.currentTarget.querySelector("span");
+    try {
+      await navigator.clipboard.writeText(input.value);
+    } catch {
+      input.select();
+      document.execCommand("copy");
+    }
+    label.textContent = {{ t.copied|tojson }};
+    setTimeout(() => (label.textContent = {{ t.copy_label|tojson }}), 2000);
+  });
+</script>
+{% endblock %}

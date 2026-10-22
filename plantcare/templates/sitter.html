@@ -1,0 +1,72 @@
+{% from "_icons.html" import icon %}
+{% set kind_icons = {"water": "droplet", "fertilize": "seedling", "repot": "pot"} %}
+<!doctype html>
+<html lang="{{ lang }}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>PlantCare · {{ t.sitter_title }}</title>
+  <link rel="icon" href="/static/icons/icon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400..800;1,9..144,400..600&family=Inter:wght@400..700&display=swap">
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body class="sitter-page">
+  <div class="backdrop" aria-hidden="true"></div>
+  <main>
+    <header class="sitter-head">
+      <span class="login-mark">{{ icon("leaf", 30) }}</span>
+      <div>
+        <h1>{{ t.sitter_title }}</h1>
+        <p class="lead">{{ t.sitter_period.format(start=period[0], end=period[1]) }}</p>
+      </div>
+      <button type="button" class="btn btn-secondary no-print" onclick="window.print()">{{ icon("printer", 18) }} {{ t.sitter_print }}</button>
+    </header>
+
+    <section>
+      <h2 class="section-title">{{ icon("calendar", 24) }} {{ t.sitter_schedule }}</h2>
+      {% if days %}
+      <ol class="sitter-days">
+        {% for day in days %}
+        <li class="sitter-day">
+          <div class="sitter-date"><span>{{ day.weekday }}</span><strong>{{ day.label }}</strong></div>
+          <ul>
+            {% for entry in day.entries %}
+            <li class="sitter-task kind-{{ entry.kind }}">
+              <span class="sitter-check" aria-hidden="true"></span>
+              <img src="/sitter/photos/{{ entry.plant.photo_file }}?{{ photo_query }}" alt="">
+              <span>{{ icon(kind_icons[entry.kind], 16) }} {{ t.care[entry.kind].task.format(name=entry.plant.name) }}</span>
+            </li>
+            {% endfor %}
+          </ul>
+        </li>
+        {% endfor %}
+      </ol>
+      {% else %}
+      <p class="muted">{{ t.sitter_nothing }}</p>
+      {% endif %}
+    </section>
+
+    <section>
+      <h2 class="section-title">{{ icon("leaf", 24) }} {{ t.sitter_plants }}</h2>
+      <div class="sitter-plants">
+        {% for plant in plants %}
+        <article class="sitter-plant">
+          <img src="/sitter/photos/{{ plant.photo_file }}?{{ photo_query }}" alt="{{ plant.name }}">
+          <div class="sitter-plant-body">
+            <h3>{{ plant.name }}</h3>
+            <p class="sci">{{ plant.scientific_name }}</p>
+            {% if plant.location %}<p class="sitter-line">{{ icon("pin", 16) }} {{ plant.location }}</p>{% endif %}
+            <p class="sitter-line">{{ icon("droplet", 16) }} {{ plant.texts.watering }}</p>
+            <p class="sitter-line">{{ icon("sun", 16) }} {{ plant.texts.light }}</p>
+            <p class="sitter-line {{ 'is-safe' if plant.care.pet_safe else 'is-toxic' }}">{{ icon("paw", 16) }} {{ plant.texts.toxicity }}</p>
+          </div>
+        </article>
+        {% endfor %}
+      </div>
+    </section>
+  </main>
+</body>
+</html>

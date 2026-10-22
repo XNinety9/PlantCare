@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% from "_icons.html" import icon %}
+{% block title %} · {{ t.nav_vacation }}{% endblock %}
+
+{% block content %}
+<section class="page-head">
+  <p class="eyebrow">{{ t.nav_vacation }}</p>
+  <h1>{{ t.vacation_title }}</h1>
+  <p class="lead">{{ t.vacation_lead }}</p>
+</section>
+
+{% if error_message %}<p class="alert">{{ icon("alert", 18) }} {{ error_message }}</p>{% endif %}
+
+<form method="get" action="/vacation" class="vacation-form">
+  <label class="field field-date">
+    <span>{{ t.vacation_from }}</span>
+    <input type="date" name="start" value="{{ start }}" required>
+  </label>
+  <label class="field field-date">
+    <span>{{ t.vacation_to }}</span>
+    <input type="date" name="end" value="{{ end }}" required>
+  </label>
+  <button type="submit" class="btn btn-primary">{{ icon("suitcase", 18) }} {{ t.vacation_create }}</button>
+</form>
+
+{% if share_url %}
+<section class="subscribe">
+  <div class="subscribe-icon">{{ icon("link", 26) }}</div>
+  <div class="subscribe-body">
+    <h2>{{ t.vacation_share }}</h2>
+    <div class="edit-row">
+      <label class="field">
+        {{ icon("link", 18) }}
+        <input type="text" readonly value="{{ share_url }}" id="share-url" aria-label="{{ t.vacation_share }}">
+      </label>
+      <button type="button" class="btn btn-secondary" id="copy-share">{{ icon("copy", 18) }} <span>{{ t.copy_label }}</span></button>
+      <a class="btn btn-primary" href="{{ share_url }}" target="_blank" rel="noopener">{{ icon("external", 18) }} {{ t.vacation_open }}</a>
+    </div>
+    <p class="hint">{{ icon("lock", 14) }} {{ t.vacation_warning }}</p>
+  </div>
+</section>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+  document.getElementById("copy-share")?.addEventListener("click", async (event) => {
+    const input = document.getElementById("share-url");
+    const label = event.currentTarget.querySelector("span");
+    try {
+      await navigator.clipboard.writeText(input.value);
+    } catch {
+      input.select();
+      document.execCommand("copy");
+    }
+    label.textContent = {{ t.copied|tojson }};
+    setTimeout(() => (label.textContent = {{ t.copy_label|tojson }}), 2000);
+  });
+</script>
+{% endblock %}

@@ -1,0 +1,171 @@
+{% extends "base.html" %}
+{% from "_icons.html" import icon %}
+
+{% block content %}
+{% set kind_icons = {"water": "droplet", "fertilize": "seedling", "repot": "pot"} %}
+
+{% macro plant_card(plant, index) -%}
+<li data-todo="{{ 'yes' if plant.is_due }}" data-toxic="{{ 'yes' if plant.care and not plant.care.pet_safe }}"
+    data-easy="{{ 'yes' if plant.care and plant.care.difficulty == 'easy' }}">
+  <a class="plant-card" href="/plants/{{ plant.id }}" style="--i: {{ index }}">
+    <img src="/photos/{{ plant.photo_file }}" alt="" loading="lazy">
+    <div class="plant-card-body">
+      <h3>{{ plant.name }}</h3>
+      <p class="sci">{{ plant.scientific_name }}</p>
+      <div class="chips">
+        {% if plant.care %}
+        <span class="chip chip-{{ plant.status.water.state }}">{{ icon("droplet", 14) }} {{ plant.status.water.label }}</span>
+        <span class="chip {{ 'chip-ok' if plant.care.pet_safe else 'chip-warn' }}">{{ icon("paw", 14) }} {{ t.chip_pet_ok if plant.care.pet_safe else t.chip_pet_toxic }}</span>
+        {% endif %}
+        {% if plant.location and view != "rooms" %}
+        <span class="chip">{{ icon("pin", 14) }} {{ plant.location }}</span>
+        {% endif %}
+      </div>
+    </div>
+  </a>
+</li>
+{%- endmacro %}
+
+<section class="hero">
+  <div class="hero-text">
+    <p class="eyebrow">{{ t.eyebrow }}</p>
+    <h1>{{ t.hero_title_1 }}<br><em>{{ t.hero_title_2 }}</em></h1>
+    <p class="lead">{{ t.lead }}</p>
+  </div>
+
+  <form class="uploader" method="post" action="/plants" enctype="multipart/form-data" data-loading>
+    {% if error_message %}
+    <p class="alert">{{ icon("alert", 18) }} {{ error_message }}</p>
+    {% endif %}
+    <div class="dropzone" id="dropzone">
+      <input type="file" name="photo" accept="image/*" capture="environment" required id="photo-input"
+             aria-label="{{ t.drop_title }}">
+      <img class="dropzone-preview" id="preview" alt="">
+      <div class="dropzone-empty">
+        <span class="dropzone-icon">{{ icon("camera", 30) }}</span>
+        <strong>{{ t.drop_title }}</strong>
+        <span>{{ t.drop_hint }}</span>
+      </div>
+    </div>
+    <div class="uploader-row">
+      <label class="field">
+        {{ icon("pin", 18) }}
+        <input type="text" name="location" placeholder="{{ t.location_placeholder }}">
+      </label>
+      <button type="submit" class="btn btn-primary">{{ icon("sparkles", 18) }} {{ t.identify_btn }}</button>
+    </div>
+  </form>
+</section>
+
+{% if tasks %}
+<section class="to-water">
+  <div class="section-head">
+    <h2 class="section-title">{{ t.todo_title }} <span class="badge-count">{{ tasks|length }}</span></h2>
+    {% if water_due > 1 %}
+    <form method="post" action="/care/water-all">
+      <button type="submit" class="btn btn-water">{{ icon("droplet", 18) }} {{ t.water_all }}</button>
+    </form>
+    {% endif %}
+  </div>
+  <ul class="water-list">
+    {% for task in tasks %}
+    <li class="water-item kind-{{ task.kind }} {{ 'state-overdue' if task.days_late else 'state-due' }}">
+      <a href="/plants/{{ task.plant.id }}" class="water-item-link">
+        <img src="/photos/{{ task.plant.photo_file }}" alt="">
+        <span>
+          <strong>{{ task.plant.name }}</strong>
+          <small>{{ icon(kind_icons[task.kind], 14) }} {{ task.label }}</small>
+        </span>
+      </a>
+      <form method="post" action="/plants/{{ task.plant.id }}/care/{{ task.kind }}">
+        <input type="hidden" name="next" value="/">
+        <button type="submit" class="btn btn-task" aria-label="{{ t.care[task.kind].done }} : {{ task.plant.name }}">
+          {{ icon("check", 18) }}<span>{{ t.care[task.kind].done }}</span>
+        </button>
+      </form>
+    </li>
+    {% endfor %}
+  </ul>
+</section>
+{% endif %}
+
+<section class="collection">
+  <div class="section-head">
+    <h2 class="section-title">{{ t.collection }} <span class="badge-count">{{ plants|length }}</span></h2>
+    {% if plants %}
+    <div class="segmented" role="group">
+      <a href="/" class="{{ 'active' if view == 'grid' }}">{{ icon("grid", 15) }} {{ t.view_grid }}</a>
+      <a href="/?view=rooms" class="{{ 'active' if view == 'rooms' }}">{{ icon("home", 15) }} {{ t.view_rooms }}</a>
+    </div>
+    {% endif %}
+  </div>
+
+  {% if plants %}
+  <div class="filters" role="group" id="filters">
+    <button type="button" class="filter active" data-filter="">{{ t.filter_all }}</button>
+    <button type="button" class="filter" data-filter="todo">{{ icon("check", 14) }} {{ t.filter_todo }}</button>
+    <button type="button" class="filter" data-filter="toxic">{{ icon("paw", 14) }} {{ t.filter_toxic }}</button>
+    <button type="button" class="filter" data-filter="easy">{{ icon("leaf", 14) }} {{ t.filter_easy }}</button>
+  </div>
+
+  {% if view == "rooms" %}
+    {% for room, room_plants in rooms %}
+    <div class="room" data-room>
+      <h3 class="room-title">{{ icon("pin", 18) }} {{ room or t.no_room }} <span>{{ room_plants|length }}</span></h3>
+      <ul class="plant-grid">
+        {% for plant in room_plants %}{{ plant_card(plant, loop.index0) }}{% endfor %}
+      </ul>
+    </div>
+    {% endfor %}
+  {% else %}
+  <ul class="plant-grid">
+    {% for plant in plants %}{{ plant_card(plant, loop.index0) }}{% endfor %}
+  </ul>
+  {% endif %}
+  <p class="muted filter-empty" id="filter-empty" hidden>{{ t.filter_empty }}</p>
+  {% else %}
+  <div class="empty">
+    <span class="empty-icon">{{ icon("leaf", 40) }}</span>
+    <p>{{ t.empty }}</p>
+  </div>
+  {% endif %}
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  const input = document.getElementById("photo-input");
+  const preview = document.getElementById("preview");
+  const dropzone = document.getElementById("dropzone");
+
+  input.addEventListener("change", () => {
+    const file = input.files[0];
+    if (!file) return;
+    preview.src = URL.createObjectURL(file);
+    dropzone.classList.add("has-file");
+  });
+  ["dragenter", "dragover"].forEach((type) =>
+    dropzone.addEventListener(type, () => dropzone.classList.add("dragging")));
+  ["dragleave", "drop"].forEach((type) =>
+    dropzone.addEventListener(type, () => dropzone.classList.remove("dragging")));
+
+  // Filtres de la collection : tout se passe dans le navigateur
+  const filters = document.getElementById("filters");
+  filters?.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-filter]");
+    if (!button) return;
+    filters.querySelectorAll("[data-filter]").forEach((other) => other.classList.toggle("active", other === button));
+    const key = button.dataset.filter;
+    let visible = 0;
+    document.querySelectorAll(".plant-grid > li").forEach((card) => {
+      const show = !key || card.dataset[key] === "yes";
+      card.hidden = !show;
+      visible += show;
+    });
+    document.querySelectorAll("[data-room]").forEach((room) => {
+      room.hidden = !room.querySelector(".plant-grid > li:not([hidden])");
+    });
+    document.getElementById("filter-empty").hidden = visible > 0;
+  });
+</script>
+{% endblock %}

@@ -1,0 +1,14 @@
+[project]
+name = "plantcare"
+version = "1.0.0"
+description = "Inventaire de plantes avec fiches de soin générées à partir d'une photo"
+requires-python = ">=3.12"
+dependencies = [
+    "anthropic",
+    "fastapi",
+    "jinja2",
+    "pillow",
+    "pydantic>=2",
+    "python-multipart",
+    "uvicorn",
+]
