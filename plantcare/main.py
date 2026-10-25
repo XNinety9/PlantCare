@@ -565,9 +565,9 @@ def calendar_feed(request: Request, token: str = "", lang: str = "en"):
                 f"SUMMARY:{summary}",
                 f"DESCRIPTION:{_ics_escape(getattr(plant['texts'], descriptions[kind]))}",
                 f"URL:{base_url}/plants/{plant['id']}",
-                # Vignette de la plante (RFC 7986) et pièce jointe : affichées par les applis qui les gèrent
+                # Vignette de la plante (RFC 7986), affichée par les applis qui la gèrent. Pas d'ATTACH : le
+                # Calendrier iOS refuse les pièces jointes des calendriers abonnés et affiche une erreur.
                 f"IMAGE;VALUE=URI;DISPLAY=BADGE;FMTTYPE=image/jpeg:{photo_url}",
-                f"ATTACH;FMTTYPE=image/jpeg:{photo_url}",
                 "BEGIN:VALARM",
                 "ACTION:DISPLAY",
                 f"DESCRIPTION:{summary}",
