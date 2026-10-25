@@ -16,6 +16,7 @@ from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from PIL import Image, ImageOps
 from pydantic import BaseModel
 
 from . import care, db, notify
@@ -49,7 +50,7 @@ PASSWORD = os.environ.get("PLANTCARE_PASSWORD", "")
 SECRET = _load_secret()
 AUTH_COOKIE = "plantcare_auth"
 # Le flux iCal et la page de garde sont ouverts sans cookie : ils sont protégés par un jeton dans l'URL
-PUBLIC_PREFIXES = ("/login", "/static/", "/lang/", "/calendar.ics", "/sitter", "/sw.js")
+PUBLIC_PREFIXES = ("/login", "/static/", "/lang/", "/calendar.ics", "/calendar/photos/", "/sitter", "/sw.js")
 ONE_YEAR = 365 * 24 * 3600
 
 
@@ -234,6 +235,11 @@ def _read_upload(photo: UploadFile) -> tuple[bytes, str] | str:
     if len(data) > MAX_UPLOAD_BYTES:
         return "too_large"
     return data, extension
+
+
+def _delete_photo_file(photo_file: str) -> None:
+    (db.PHOTOS_DIR / photo_file).unlink(missing_ok=True)
+    (db.DATA_DIR / "thumbs" / f"{Path(photo_file).stem}.jpg").unlink(missing_ok=True)
 
 
 def _save_photo(data: bytes, extension: str) -> str:
@@ -446,14 +452,14 @@ def delete_journal_photo(photo_id: int):
     if photo["photo_file"] == plant["photo_file"]:
         return _redirect_with_error(f"/plants/{plant['id']}", "main_photo_delete")
     db.delete_photo(photo_id)
-    (db.PHOTOS_DIR / photo["photo_file"]).unlink(missing_ok=True)
+    _delete_photo_file(photo["photo_file"])
     return RedirectResponse(f"/plants/{plant['id']}#journal", status_code=303)
 
 
 @app.post("/plants/{plant_id}/delete")
 def delete_plant(plant_id: int):
     for photo_file in db.delete_plant(plant_id):
-        (db.PHOTOS_DIR / photo_file).unlink(missing_ok=True)
+        _delete_photo_file(photo_file)
     return RedirectResponse("/", status_code=303)
 
 
@@ -509,6 +515,22 @@ def _ics_escape(text: str) -> str:
     return text.replace("\\", "\\\\").replace(";", "\\;").replace(",", "\\,").replace("\n", "\\n")
 
 
+def _ics_fold(line: str) -> str:
+    """Replie une ligne iCal à 75 octets, comme l'exige la RFC 5545, sans couper un caractère UTF-8."""
+    chunks, current = [], ""
+    for char in line:
+        if len((current + char).encode()) > (75 if not chunks else 74):
+            chunks.append(current)
+            current = ""
+        current += char
+    chunks.append(current)
+    return "\r\n ".join(chunks)
+
+
+def _calendar_photo_url(base_url: str, photo_file: str) -> str:
+    return f"{base_url}/calendar/photos/{photo_file}?{urlencode({'token': _calendar_token()})}"
+
+
 @app.get("/calendar.ics")
 def calendar_feed(request: Request, token: str = "", lang: str = "en"):
     if not hmac.compare_digest(token, _calendar_token()):
@@ -533,6 +555,7 @@ def calendar_feed(request: Request, token: str = "", lang: str = "en"):
         for entry in entries:
             plant, kind = entry["plant"], entry["kind"]
             summary = _ics_escape(t["care"][kind]["event"].format(name=plant["name"]))
+            photo_url = _calendar_photo_url(base_url, plant["photo_file"])
             lines += [
                 "BEGIN:VEVENT",
                 f"UID:plantcare-{plant['id']}-{kind}-{day:%Y%m%d}",
@@ -542,6 +565,9 @@ def calendar_feed(request: Request, token: str = "", lang: str = "en"):
                 f"SUMMARY:{summary}",
                 f"DESCRIPTION:{_ics_escape(getattr(plant['texts'], descriptions[kind]))}",
                 f"URL:{base_url}/plants/{plant['id']}",
+                # Vignette de la plante (RFC 7986) et pièce jointe : affichées par les applis qui les gèrent
+                f"IMAGE;VALUE=URI;DISPLAY=BADGE;FMTTYPE=image/jpeg:{photo_url}",
+                f"ATTACH;FMTTYPE=image/jpeg:{photo_url}",
                 "BEGIN:VALARM",
                 "ACTION:DISPLAY",
                 f"DESCRIPTION:{summary}",
@@ -550,7 +576,26 @@ def calendar_feed(request: Request, token: str = "", lang: str = "en"):
                 "END:VEVENT",
             ]
     lines.append("END:VCALENDAR")
-    return Response("\r\n".join(lines) + "\r\n", media_type="text/calendar; charset=utf-8")
+    return Response("\r\n".join(_ics_fold(line) for line in lines) + "\r\n",
+                    media_type="text/calendar; charset=utf-8")
+
+
+@app.get("/calendar/photos/{photo_file}")
+def calendar_photo(photo_file: str, token: str = ""):
+    if not hmac.compare_digest(token, _calendar_token()):
+        raise HTTPException(status_code=404)
+    # Seulement les photos principales : le journal et les diagnostics restent privés
+    if photo_file not in {plant["photo_file"] for plant in db.list_plants()}:
+        raise HTTPException(status_code=404)
+    # Vignette légère, générée une fois : les applis de calendrier la téléchargent à chaque actualisation
+    thumbnail = db.DATA_DIR / "thumbs" / f"{Path(photo_file).stem}.jpg"
+    if not thumbnail.exists():
+        thumbnail.parent.mkdir(exist_ok=True)
+        with Image.open(db.PHOTOS_DIR / photo_file) as image:
+            image = ImageOps.exif_transpose(image).convert("RGB")
+            image.thumbnail((512, 512))
+            image.save(thumbnail, format="JPEG", quality=80)
+    return FileResponse(thumbnail, media_type="image/jpeg", headers={"Cache-Control": "public, max-age=86400"})
 
 
 @app.post("/notifications/test")

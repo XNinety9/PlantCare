@@ -86,7 +86,7 @@ All settings are environment variables (see `.env.example`).
 
 ## Reminders
 
-- **Calendar feed.** The Calendar page shows a private iCal link. Add it as a *subscribed* calendar: each upcoming watering, feeding or repotting becomes an all-day event with a 9:00 reminder. The link is read-only, and anyone who has it can read your care schedule. Apple Calendar on a phone fetches the feed from the device itself, so a VPN such as Tailscale is enough; Google Calendar fetches it from Google's servers, so the app must be reachable from the internet.
+- **Calendar feed.** The Calendar page shows a private iCal link. Add it as a *subscribed* calendar: each upcoming watering, feeding or repotting becomes an all-day event with a 9:00 reminder and a thumbnail of the plant. Calendar apps that support event images ([RFC 7986](https://www.rfc-editor.org/rfc/rfc7986#section-5.10)) or attachments show it; others simply ignore it. The link is read-only, and anyone who has it can read your care schedule and see the plants' main photos. Apple Calendar on a phone fetches the feed from the device itself, so a VPN such as Tailscale is enough; Google Calendar fetches it from Google's servers, so the app must be reachable from the internet.
 - **Daily summary.** With `PLANTCARE_NTFY_URL` set, PlantCare sends one notification a day listing the care due, and nothing on days with nothing to do. Install the ntfy app and subscribe to the same topic. Use a hard-to-guess topic name on ntfy.sh, since public topics can be read by anyone who knows them. The Calendar page has a button to send a test notification.
 - Watering appears in reminders once you have logged a first watering for a plant. Feeding and repotting are planned from the day the plant was added.
 
@@ -98,6 +98,7 @@ The Vacation page creates a link for a date range. The page behind it lists, day
 
 - `data/plantcare.db`: SQLite database (plants, care sheets as JSON, care log, photo journal and health checks).
 - `data/photos/`: photos.
+- `data/thumbs/`: thumbnails for calendar events, regenerated when missing.
 - `data/secret.key`: generated signing key.
 
 To back up, copy the `data/` folder. Older databases are migrated automatically at startup.
